@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Absensi Guru - Responsive Web App</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        /* Custom styles for better mobile experience */
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .section {
+            display: none;
+        }
+        
+        .section.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Touch-friendly elements */
+        button, .btn {
+            min-height: 44px;
+            min-width: 44px;
+        }
+        
+        /* Bottom navigation for mobile */
+        @media (max-width: 768px) {
+            .bottom-nav {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 50;
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            }
+            
+            .content-area {
+                padding-bottom: 80px;
+            }
+        }
+        
+        /* Sidebar for desktop */
+        @media (min-width: 769px) {
+            .desktop-sidebar {
+                width: 250px;
+                position: fixed;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                z-index: 40;
+            }
+            
+            .desktop-content {
+                margin-left: 250px;
+            }
+        }
+        
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            max-width: 300px;
+            transform: translateX(150%);
+            transition: transform 0.3s ease;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <div class="bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg">
+            <div class="flex items-center">
+                <i class="fas fa-check-circle mr-2"></i>
+                <span id="toast-message">Pesan toast</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Section (Default) -->
+    <section id="login-section" class="section active min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-md">
+            <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                <div class="text-center mb-8">
+                    <div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-chalkboard-teacher text-white text-3xl"></i>
+                    </div>
+                    <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Absensi Guru</h1>
+                    <p class="text-gray-600 mt-2">Sistem absensi digital responsif</p>
+                </div>
+                
+                <form id="login-form">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-gray-700 mb-2" for="username">
+                                <i class="fas fa-user mr-2"></i>Username
+                            </label>
+                            <input type="text" id="username" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   placeholder="Masukkan username" required>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gray-700 mb-2" for="password">
+                                <i class="fas fa-lock mr-2"></i>Password
+                            </label>
+                            <input type="password" id="password" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   placeholder="Masukkan password" required>
+                        </div>
+                        
+                        <button type="submit" 
+                                class="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:opacity-90 transition-opacity duration-200 active:scale-95">
+                            <i class="fas fa-sign-in-alt mr-2"></i>Masuk
+                        </button>
+                    </div>
+                </form>
+                
+                <div class="mt-6 text-center text-sm text-gray-500">
+                    <p>Gunakan username dan password yang telah diberikan</p>
+                    <p class="mt-2 text-xs">Admin: admin / admin123</p>
+                    <p class="text-xs">Guru: budi / guru123 atau siti / guru123</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main App Container (Hidden until login) -->
+    <div id="app-container" class="hidden">
+        <!-- Mobile Header -->
+        <header class="bg-gradient-to-r from-blue-600 to-purple-700 text-white p-4 shadow-lg md:hidden">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <button id="mobile-menu-btn" class="mr-3 p-2">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                    <h1 class="text-xl font-bold">Absensi Guru</h1>
+                </div>
+                <div class="flex items-center">
+                    <span id="mobile-role-badge" class="bg-white/20 px-3 py-1 rounded-full text-sm mr-2">Role</span>
+                    <button id="logout-btn" class="p-2">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Mobile Menu Dropdown -->
+            <div id="mobile-menu" class="hidden mt-4 space-y-2">
+                <button data-section="dashboard" class="mobile-menu-item w-full text-left p-3 rounded-lg bg-white/10">
+                    <i class="fas fa-home mr-3"></i>Dashboard
+                </button>
+                <button data-section="absensi" class="mobile-menu-item w-full text-left p-3 rounded-lg bg-white/10">
+                    <i class="fas fa-fingerprint mr-3"></i>Absensi
+                </button>
+                <button data-section="rekap" class="mobile-menu-item w-full text-left p-3 rounded-lg bg-white/10">
+                    <i class="fas fa-chart-bar mr-3"></i>Rekap
+                </button>
+            </div>
+        </header>
+
+        <!-- Desktop Sidebar -->
+        <aside class="desktop-sidebar hidden md:block bg-gradient-to-b from-blue-700 to-purple-800 text-white">
+            <div class="p-6">
+                <div class="flex items-center mb-8">
+                    <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mr-3">
+                        <i class="fas fa-chalkboard-teacher text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold">Absensi Guru</h1>
+                        <p id="desktop-user-name" class="text-sm text-white/80">Nama User</p>
+                    </div>
+                </div>
+                
+                <nav class="space-y-2">
+                    <button data-section="dashboard" class="desktop-menu-item w-full text-left p-3 rounded-lg hover:bg-white/10 transition-colors duration-200">
+                        <i class="fas fa-home mr-3"></i>Dashboard
+                    </button>
+                    <button data-section="absensi" class="desktop-menu-item w-full text-left p-3 rounded-lg hover:bg-white/10 transition-colors duration-200">
+                        <i class="fas fa-fingerprint mr-3"></i>Absensi
+                    </button>
+                    <button data-section="rekap" class="desktop-menu-item w-full text-left p-3 rounded-lg hover:bg-white/10 transition-colors duration-200">
+                        <i class="fas fa-chart-bar mr-3"></i>Rekap
+                    </button>
+                </nav>
+                
+                <div class="absolute bottom-6 left-6 right-6">
+                    <div class="mb-4 p-3 bg-white/10 rounded-lg">
+                        <p class="text-sm">Role: <span id="desktop-role-badge" class="font-semibold">Admin</span></p>
+                    </div>
+                    <button id="desktop-logout-btn" class="w-full bg-white/20 hover:bg-white/30 text-white py-3 px-4 rounded-lg font-semibold transition-colors duration-200">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Keluar
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="desktop-content">
+            <!-- Dashboard Section -->
+            <section id="dashboard-section" class="section content-area p-4 md:p-6">
+                <div class="mb-6">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800">
+                        <i class="fas fa-home mr-2"></i>Dashboard
+                    </h2>
+                    <p class="text-gray-600">Rangkuman data absensi guru</p>
+                </div>
+                
+                <!-- Date Filter -->
+                <div class="bg-white rounded-xl shadow p-4 mb-6">
+                    <h3 class="font-semibold mb-3 text-gray-700">Filter Tanggal</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">Dari Tanggal</label>
+                            <input type="date" id="start-date" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">Sampai Tanggal</label>
+                            <input type="date" id="end-date" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div class="flex items-end">
+                            <button id="filter-btn" class="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors duration-200">
+                                <i class="fas fa-filter mr-2"></i>Filter
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl shadow p-5">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm opacity-90">Total Absen</p>
+                                <p id="total-absen" class="text-3xl font-bold mt-1">0</p>
+                            </div>
+                            <div class="bg-white/20 p-3 rounded-full">
+                                <i class="fas fa-users text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-xl shadow p-5">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm opacity-90">Tepat Waktu</p>
+                                <p id="tepat-waktu" class="text-3xl font-bold mt-1">0</p>
+                            </div>
+                            <div class="bg-white/20 p-3 rounded-full">
+                                <i class="fas fa-check-circle text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl shadow p-5">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm opacity-90">Terlambat</p>
+                                <p id="terlambat" class="text-3xl font-bold mt-1">0</p>
+                            </div>
+                            <div class="bg-white/20 p-3 rounded-full">
+                                <i class="fas fa-clock text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Chart -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6 mb-6">
+                    <h3 class="font-semibold mb-4 text-gray-700">Rekap Bulanan</h3>
+                    <div class="h-64 md:h-80">
+                        <canvas id="monthlyChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Recent Activity -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6">
+                    <h3 class="font-semibold mb-4 text-gray-700">Aktivitas Terbaru</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="text-left p-3 text-sm font-semibold text-gray-700">Nama</th>
+                                    <th class="text-left p-3 text-sm font-semibold text-gray-700">Tanggal</th>
+                                    <th class="text-left p-3 text-sm font-semibold text-gray-700">Waktu</th>
+                                    <th class="text-left p-3 text-sm font-semibold text-gray-700">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-activity">
+                                <tr>
+                                    <td colspan="4" class="p-4 text-center text-gray-500">Memuat data...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Absensi Section -->
+            <section id="absensi-section" class="section content-area p-4 md:p-6">
+                <div class="mb-6">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800">
+                        <i class="fas fa-fingerprint mr-2"></i>Absensi
+                    </h2>
+                    <p class="text-gray-600">Catat kehadiran Anda hari ini</p>
+                </div>
+                
+                <!-- Current Date & Time -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-5 mb-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between">
+                        <div class="mb-4 md:mb-0">
+                            <h3 class="text-lg font-semibold text-gray-800" id="current-date">Hari, DD MMMM YYYY</h3>
+                            <p class="text-gray-600" id="current-time">HH:MM:SS</p>
+                        </div>
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <p class="text-sm text-gray-600 mb-1">Status Absen Hari Ini</p>
+                            <p id="today-status" class="text-lg font-semibold text-blue-600">Belum Absen</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Absen Button -->
+                <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl shadow-lg p-6 md:p-8 mb-8 text-center">
+                    <div class="w-24 h-24 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                        <i class="fas fa-fingerprint text-white text-4xl"></i>
+                    </div>
+                    
+                    <h3 class="text-xl md:text-2xl font-bold text-gray-800 mb-3">Absen Sekarang</h3>
+                    <p class="text-gray-600 mb-6 max-w-md mx-auto">Klik tombol di bawah untuk mencatat kehadiran Anda. Sistem akan menentukan status tepat waktu atau terlambat.</p>
+                    
+                    <button id="absen-btn" class="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white py-4 px-8 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-200 active:scale-95 w-full md:w-auto">
+                        <i class="fas fa-check-circle mr-2"></i>ABSEN SEKARANG
+                    </button>
+                    
+                    <p class="text-sm text-gray-500 mt-4">Jam masuk: 07:00 WIB | Batas terlambat: 07:15 WIB</p>
+                </div>
+                
+                <!-- Monthly Recap -->
+                <div class="bg-white rounded-xl shadow p-4 md:p-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">Rekap Bulan Ini</h3>
+                        <div class="flex space-x-2 mt-2 md:mt-0">
+                            <select id="rekap-bulan" class="border border-gray-300 rounded-lg px-3 py-2">
+                                <!-- Options will be populated by JS -->
+                            </select>
+                            <select id="rekap-tahun" class="border border-gray-300 rounded-lg px-3 py-2">
+                                <!-- Options will be populated by JS -->
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div class="bg-green-50 border border-green-100 rounded-lg p-4">
+                            <p class="text-sm text-green-700 mb-1">Total Hadir</p>
+                            <p id="rekap-hadir" class="text-2xl font-bold text-green-800">0</p>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-100 rounded-lg p-4">
+                            <p class="text-sm text-blue-700 mb-1">Tepat Waktu</p>
+                            <p id="rekap-tepat" class="text-2xl font-bold text-blue-800">0</p>
+                        </div>
+                        <div class="bg-amber-50 border border-amber-100 rounded-lg p-4">
+                            <p class="text-sm text-amber-700 mb-1">Terlambat</p>
+                            <p id="rekap-terlambat" class="text-2xl font-bold text-amber-800">0</p>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="text-left p-3 text-sm font-semibold text-gray-700">Tanggal</th>
+                                    <th class="text-left p-3 text-sm font-semibold text-gray-700">Waktu</th>
+                                    <th class="text-left p-3 text-sm font-semibold text-gray-700">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="personal-rekap">
+                                <tr>
+                                    <td colspan="3" class="p-4 text-center text-gray-500">Belum ada data absensi</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Rekap Section -->
+            <section id="rekap-section" class="section content-area p-4 md:p-6">
+                <div class="mb-6">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800">
+                        <i class="fas fa-chart-bar mr-2"></i>Rekap Absensi
+                    </h2>
+                    <p class="text-gray-600">Data lengkap kehadiran guru</p>
+                </div>
+                
+                <!-- Filter -->
+                <div class="bg-white rounded-xl shadow p-4 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">Bulan</label>
+                            <select id="filter-bulan" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                <option value="">Semua Bulan</option>
+                                <!-- Options will be populated by JS -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">Tahun</label>
+                            <select id="filter-tahun" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                <option value="">Semua Tahun</option>
+                                <!-- Options will be populated by JS -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">Mode Tampilan</label>
+                            <select id="filter-mode" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                <option value="perhari">Per Hari</option>
+                                <option value="perbulan">Per Bulan</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">Cari Guru (Admin)</label>
+                            <input type="text" id="search-guru" placeholder="Cari nama..." 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Stats Summary -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-white rounded-xl shadow p-5">
+                        <div class="flex items-center">
+                            <div class="bg-green-100 p-3 rounded-full mr-4">
+                                <i class="fas fa-user-check text-green-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Total Hadir</p>
+                                <p id="summary-hadir" class="text-2xl font-bold">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow p-5">
+                        <div class="flex items-center">
+                            <div class="bg-blue-100 p-3 rounded-full mr-4">
+                                <i class="fas fa-check-circle text-blue-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Tepat Waktu</p>
+                                <p id="summary-tepat" class="text-2xl font-bold">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow p-5">
+                        <div class="flex items-center">
+                            <div class="bg-amber-100 p-3 rounded-full mr-4">
+                                <i class="fas fa-clock text-amber-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Terlambat</p>
+                                <p id="summary-terlambat" class="text-2xl font-bold">0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Data Table -->
+                <div class="bg-white rounded-xl shadow overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="bg-gradient-to-r from-blue-50 to-purple-50">
+                                    <th class="text-left p-3 text-sm font-semibold text-gray-700">Nama</th>
+                                    <th class="text-left p-3 text-sm font-semibold text-gray-700">Tanggal</th>
+                                    <th class="text-left p-3 text-sm font-semibold text-gray-700">Waktu</th>
+                                    <th class="text-left p-3 text-sm font-semibold text-gray-700">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rekap-data">
+                                <tr>
+                                    <td colspan="4" class="p-8 text-center">
+                                        <div class="flex flex-col items-center justify-center text-gray-500">
+                                            <i class="fas fa-database text-4xl mb-3"></i>
+                                            <p>Belum ada data rekap. Pilih filter untuk menampilkan data.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <div class="border-t border-gray-200 p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="text-sm text-gray-600">
+                                Menampilkan <span id="page-start">0</span>-<span id="page-end">0</span> dari <span id="total-items">0</span> data
+                            </div>
+                            <div class="flex space-x-2">
+                                <button id="prev-page" class="px-3 py-1 border border-gray-300 rounded-lg text-gray-700 disabled:opacity-50">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <span id="page-numbers" class="px-3 py-1">1</span>
+                                <button id="next-page" class="px-3 py-1 border border-gray-300 rounded-lg text-gray-700 disabled:opacity-50">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Navigation (Mobile Only) -->
+        <nav class="bottom-nav bg-white border-t border-gray-200 py-2 md:hidden">
+            <div class="flex justify-around">
+                <button data-section="dashboard" class="bottom-nav-item flex flex-col items-center p-2 text-gray-600">
+                    <i class="fas fa-home text-lg mb-1"></i>
+                    <span class="text-xs">Dashboard</span>
+                </button>
+                <button data-section="absensi" class="bottom-nav-item flex flex-col items-center p-2 text-gray-600">
+                    <i class="fas fa-fingerprint text-lg mb-1"></i>
+                    <span class="text-xs">Absensi</span>
+                </button>
+                <button data-section="rekap" class="bottom-nav-item flex flex-col items-center p-2 text-gray-600">
+                    <i class="fas fa-chart-bar text-lg mb-1"></i>
+                    <span class="text-xs">Rekap</span>
+                </button>
+            </div>
+        </nav>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Konfigurasi
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzTMTzE6WJfym3CttgqIQ3OIOMNVg0MUF9VNS764xsjoE1ld7_zHKXtp1_QAgrZWNi-/exec'; // Ganti dengan URL Web App Anda
+        
+        // State aplikasi
+        let currentUser = null;
+        let currentSection = 'dashboard';
+        let chart = null;
+        let currentRekapData = [];
+        let currentPage = 1;
+        const itemsPerPage = 10;
+        
+        // Inisialisasi
+        document.addEventListener('DOMContentLoaded', function() {
+            checkLoginStatus();
+            setupEventListeners();
+            updateDateTime();
+            setInterval(updateDateTime, 1000);
+            
+            // Setup bulan dan tahun
+            setupMonthYearOptions();
+            
+            // Set default filter tanggal
+            const today = new Date();
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            
+            document.getElementById('start-date').valueAsDate = firstDay;
+            document.getElementById('end-date').valueAsDate = today;
+        });
+        
+        // Cek status login
+        function checkLoginStatus() {
+            const savedUser = localStorage.getItem('absensiUser');
+            if (savedUser) {
+                try {
+                    currentUser = JSON.parse(savedUser);
+                    showApp();
+                    loadDashboard();
+                } catch (e) {
+                    localStorage.removeItem('absensiUser');
+                }
+            }
+        }
+        
+        // Setup event listeners
+        function setupEventListeners() {
+            // Login
+            document.getElementById('login-form').addEventListener('submit', handleLogin);
+            
+            // Navigation
+            document.querySelectorAll('[data-section]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const section = this.getAttribute('data-section');
+                    showSection(section);
+                    
+                    // Toggle mobile menu
+                    if (window.innerWidth <= 768) {
+                        document.getElementById('mobile-menu').classList.add('hidden');
+                    }
+                });
+            });
+            
+            // Mobile menu toggle
+            document.getElementById('mobile-menu-btn').addEventListener('click', function() {
+                const menu = document.getElementById('mobile-menu');
+                menu.classList.toggle('hidden');
+            });
+            
+            // Logout
+            document.getElementById('logout-btn').addEventListener('click', logout);
+            document.getElementById('desktop-logout-btn').addEventListener('click', logout);
+            
+            // Filter dashboard
+            document.getElementById('filter-btn').addEventListener('click', loadDashboard);
+            
+            // Absen button
+            document.getElementById('absen-btn').addEventListener('click', handleAbsen);
+            
+            // Rekap filter
+            document.getElementById('rekap-bulan').addEventListener('change', loadPersonalRekap);
+            document.getElementById('rekap-tahun').addEventListener('change', loadPersonalRekap);
+            
+            // Rekap section filter
+            document.getElementById('filter-bulan').addEventListener('change', loadRekapData);
+            document.getElementById('filter-tahun').addEventListener('change', loadRekapData);
+            document.getElementById('filter-mode').addEventListener('change', loadRekapData);
+            document.getElementById('search-guru').addEventListener('input', loadRekapData);
+            
+            // Pagination
+            document.getElementById('prev-page').addEventListener('click', prevPage);
+            document.getElementById('next-page').addEventListener('click', nextPage);
+        }
+        
+        // Handle login
+        async function handleLogin(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await callAPI('login', { username, password });
+                
+                if (response.success) {
+                    currentUser = response.data;
+                    localStorage.setItem('absensiUser', JSON.stringify(currentUser));
+                    showApp();
+                    showToast('Login berhasil!');
+                    
+                    // Redirect berdasarkan role
+                    if (currentUser.role === 'admin') {
+                        showSection('dashboard');
+                        loadDashboard();
+                    } else {
+                        showSection('absensi');
+                        checkTodayAbsen();
+                        loadPersonalRekap();
+                    }
+                } else {
+                    showToast(response.message, 'error');
+                }
+            } catch (error) {
+                showToast('Terjadi kesalahan. Coba lagi.', 'error');
+            }
+        }
+        
+        // Tampilkan aplikasi setelah login
+        function showApp() {
+            document.getElementById('login-section').classList.remove('active');
+            document.getElementById('app-container').classList.remove('hidden');
+            
+            // Update UI berdasarkan user
+            document.getElementById('mobile-role-badge').textContent = currentUser.role;
+            document.getElementById('desktop-role-badge').textContent = currentUser.role;
+            document.getElementById('desktop-user-name').textContent = currentUser.nama;
+            
+            // Sembunyikan dashboard jika bukan admin
+            if (currentUser.role !== 'admin') {
+                document.querySelectorAll('[data-section="dashboard"]').forEach(el => {
+                    el.style.display = 'none';
+                });
+                showSection('absensi');
+            }
+        }
+        
+        // Tampilkan section
+        function showSection(section) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            
+            // Show selected section
+            document.getElementById(`${section}-section`).classList.add('active');
+            currentSection = section;
+            
+            // Update active nav
+            document.querySelectorAll('.bottom-nav-item, .desktop-menu-item, .mobile-menu-item').forEach(item => {
+                item.classList.remove('bg-blue-500', 'text-white');
+                item.classList.add('text-gray-600');
+            });
+            
+            document.querySelectorAll(`[data-section="${section}"]`).forEach(item => {
+                item.classList.remove('text-gray-600');
+                item.classList.add('bg-blue-500', 'text-white');
+            });
+            
+            // Load data berdasarkan section
+            if (section === 'dashboard') {
+                loadDashboard();
+            } else if (section === 'absensi') {
+                checkTodayAbsen();
+                loadPersonalRekap();
+            } else if (section === 'rekap') {
+                loadRekapData();
+            }
+        }
+        
+        // Update tanggal dan waktu
+        function updateDateTime() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            
+            document.getElementById('current-date').textContent = now.toLocaleDateString('id-ID', options);
+            document.getElementById('current-time').textContent = now.toLocaleTimeString('id-ID');
+        }
+        
+        // Setup opsi bulan dan tahun
+        function setupMonthYearOptions() {
+            const months = [
+                'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+            ];
+            
+            const currentDate = new Date();
+            let currentMonth = currentDate.getMonth();
+            let currentYear = currentDate.getFullYear();
+            
+            // Logika khusus: 26 ke atas adalah bulan berikutnya
+            if (currentDate.getDate() >= 26) {
+                currentMonth = (currentMonth + 1) % 12;
+                if (currentMonth === 0) currentYear++;
+            }
+            
+            // Setup bulan
+            const monthSelects = document.querySelectorAll('#rekap-bulan, #filter-bulan');
+            monthSelects.forEach(select => {
+                select.innerHTML = '<option value="">Semua Bulan</option>';
+                months.forEach((month, index) => {
+                    const option = document.createElement('option');
+                    option.value = index + 1;
+                    option.textContent = month;
+                    if (index + 1 === currentMonth + 1) {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                });
+            });
+            
+            // Setup tahun
+            const yearSelects = document.querySelectorAll('#rekap-tahun, #filter-tahun');
+            yearSelects.forEach(select => {
+                select.innerHTML = '<option value="">Semua Tahun</option>';
+                for (let year = currentYear; year >= currentYear - 5; year--) {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    if (year === currentYear) {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                }
+            });
+        }
+        
+        // Handle absen
+        async function handleAbsen() {
+            if (currentUser.role !== 'guru') {
+                showToast('Hanya guru yang dapat melakukan absen', 'error');
+                return;
+            }
+            
+            const now = new Date();
+            const tanggal = now.toISOString().split('T')[0];
+            const waktu = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            
+            // Tentukan status (Tepat Waktu atau Terlambat)
+            const jamMasuk = 7; // 07:00
+            const menitBatas = 15; // Batas terlambat 15 menit
+            let status = 'Tepat Waktu';
+            
+            if (now.getHours() > jamMasuk || (now.getHours() === jamMasuk && now.getMinutes() > menitBatas)) {
+                status = 'Terlambat';
+            }
+            
+            try {
+                const response = await callAPI('absen', {
+                    userId: currentUser.id,
+                    nama: currentUser.nama,
+                    tanggal,
+                    waktu,
+                    status
+                });
+                
+                if (response.success) {
+                    showToast('Absensi berhasil! Status: ' + status);
+                    document.getElementById('absen-btn').disabled = true;
+                    document.getElementById('absen-btn').innerHTML = '<i class="fas fa-check-circle mr-2"></i>SUDAH ABSEN';
+                    document.getElementById('absen-btn').classList.remove('from-green-500', 'to-emerald-600');
+                    document.getElementById('absen-btn').classList.add('from-gray-400', 'to-gray-500');
+                    document.getElementById('today-status').textContent = status;
+                    document.getElementById('today-status').className = status === 'Tepat Waktu' ? 
+                        'text-lg font-semibold text-green-600' : 'text-lg font-semibold text-amber-600';
+                    
+                    // Refresh rekap
+                    loadPersonalRekap();
+                } else {
+                    showToast(response.message, 'error');
+                }
+            } catch (error) {
+                showToast('Gagal melakukan absen. Coba lagi.', 'error');
+            }
+        }
+        
+        // Cek apakah sudah absen hari ini
+        async function checkTodayAbsen() {
+            if (currentUser.role !== 'guru') return;
+            
+            const today = new Date().toISOString().split('T')[0];
+            
+            try {
+                const response = await callAPI('getRekap', {
+                    userId: currentUser.id,
+                    role: currentUser.role,
+                    bulan: new Date().getMonth() + 1,
+                    tahun: new Date().getFullYear()
+                });
+                
+                if (response.success && response.data.rekap) {
+                    const todayAbsen = response.data.rekap.find(item => 
+                        item.tanggal.startsWith(today)
+                    );
+                    
+                    if (todayAbsen) {
+                        document.getElementById('absen-btn').disabled = true;
+                        document.getElementById('absen-btn').innerHTML = '<i class="fas fa-check-circle mr-2"></i>SUDAH ABSEN';
+                        document.getElementById('absen-btn').classList.remove('from-green-500', 'to-emerald-600');
+                        document.getElementById('absen-btn').classList.add('from-gray-400', 'to-gray-500');
+                        document.getElementById('today-status').textContent = todayAbsen.status;
+                        document.getElementById('today-status').className = todayAbsen.status === 'Tepat Waktu' ? 
+                            'text-lg font-semibold text-green-600' : 'text-lg font-semibold text-amber-600';
+                    } else {
+                        document.getElementById('today-status').textContent = 'Belum Absen';
+                        document.getElementById('today-status').className = 'text-lg font-semibold text-blue-600';
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking today absen:', error);
+            }
+        }
+        
+        // Load dashboard data
+        async function loadDashboard() {
+            if (currentUser.role !== 'admin') return;
+            
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            
+            try {
+                const response = await callAPI('getDashboard', { startDate, endDate });
+                
+                if (response.success) {
+                    const data = response.data;
+                    
+                    // Update stats
+                    document.getElementById('total-absen').textContent = data.totalAbsen;
+                    document.getElementById('tepat-waktu').textContent = data.tepatWaktu;
+                    document.getElementById('terlambat').textContent = data.terlambat;
+                    
+                    // Update chart
+                    updateChart(data.monthlyData);
+                    
+                    // Load recent activity
+                    loadRecentActivity();
+                }
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+        
+        // Update chart
+        function updateChart(monthlyData) {
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            
+            if (chart) {
+                chart.destroy();
+            }
+            
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: monthlyData.labels,
+                    datasets: [
+                        {
+                            label: 'Tepat Waktu',
+                            data: monthlyData.tepatWaktu,
+                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            borderColor: 'rgb(59, 130, 246)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Terlambat',
+                            data: monthlyData.terlambat,
+                            backgroundColor: 'rgba(245, 158, 11, 0.7)',
+                            borderColor: 'rgb(245, 158, 11)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Load recent activity
+        async function loadRecentActivity() {
+            try {
+                const today = new Date();
+                const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                
+                const response = await callAPI('getRekap', {
+                    role: 'admin',
+                    startDate: firstDay.toISOString().split('T')[0],
+                    endDate: today.toISOString().split('T')[0]
+                });
+                
+                if (response.success && response.data.rekap) {
+                    const recent = response.data.rekap.slice(0, 5);
+                    const tbody = document.getElementById('recent-activity');
+                    tbody.innerHTML = '';
+                    
+                    if (recent.length === 0) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="4" class="p-4 text-center text-gray-500">
+                                    Tidak ada aktivitas terbaru
+                                </td>
+                            </tr>
+                        `;
+                        return;
+                    }
+                    
+                    recent.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.className = 'border-b border-gray-100 hover:bg-gray-50';
+                        row.innerHTML = `
+                            <td class="p-3">${item.nama}</td>
+                            <td class="p-3">${formatDate(item.tanggal)}</td>
+                            <td class="p-3">${item.waktu}</td>
+                            <td class="p-3">
+                                <span class="px-2 py-1 rounded-full text-xs font-semibold ${item.status === 'Tepat Waktu' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}">
+                                    ${item.status}
+                                </span>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading recent activity:', error);
+            }
+        }
+        
+        // Load personal rekap
+        async function loadPersonalRekap() {
+            const bulan = document.getElementById('rekap-bulan').value;
+            const tahun = document.getElementById('rekap-tahun').value;
+            
+            try {
+                const response = await callAPI('getRekap', {
+                    userId: currentUser.id,
+                    role: currentUser.role,
+                    bulan: bulan || null,
+                    tahun: tahun || null
+                });
+                
+                if (response.success) {
+                    const data = response.data;
+                    
+                    // Update stats
+                    document.getElementById('rekap-hadir').textContent = data.totalHadir;
+                    document.getElementById('rekap-tepat').textContent = data.totalTepatWaktu;
+                    document.getElementById('rekap-terlambat').textContent = data.totalTerlambat;
+                    
+                    // Update table
+                    const tbody = document.getElementById('personal-rekap');
+                    tbody.innerHTML = '';
+                    
+                    if (data.rekap.length === 0) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="3" class="p-4 text-center text-gray-500">
+                                    Tidak ada data absensi untuk periode ini
+                                </td>
+                            </tr>
+                        `;
+                        return;
+                    }
+                    
+                    data.rekap.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.className = 'border-b border-gray-100 hover:bg-gray-50';
+                        row.innerHTML = `
+                            <td class="p-3">${formatDate(item.tanggal)}</td>
+                            <td class="p-3">${item.waktu}</td>
+                            <td class="p-3">
+                                <span class="px-2 py-1 rounded-full text-xs font-semibold ${item.status === 'Tepat Waktu' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}">
+                                    ${item.status}
+                                </span>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading personal rekap:', error);
+            }
+        }
+        
+        // Load rekap data
+        async function loadRekapData() {
+            const bulan = document.getElementById('filter-bulan').value;
+            const tahun = document.getElementById('filter-tahun').value;
+            const mode = document.getElementById('filter-mode').value;
+            const search = document.getElementById('search-guru').value;
+            
+            try {
+                const response = await callAPI('getRekap', {
+                    userId: currentUser.role === 'guru' ? currentUser.id : null,
+                    role: currentUser.role,
+                    bulan: bulan || null,
+                    tahun: tahun || null
+                });
+                
+                if (response.success) {
+                    const data = response.data;
+                    currentRekapData = data.rekap || [];
+                    
+                    // Filter by search
+                    if (search && currentUser.role === 'admin') {
+                        currentRekapData = currentRekapData.filter(item => 
+                            item.nama.toLowerCase().includes(search.toLowerCase())
+                        );
+                    }
+                    
+                    // Update stats
+                    document.getElementById('summary-hadir').textContent = data.totalHadir;
+                    document.getElementById('summary-tepat').textContent = data.totalTepatWaktu;
+                    document.getElementById('summary-terlambat').textContent = data.totalTerlambat;
+                    
+                    // Update pagination
+                    updatePagination();
+                    renderRekapTable();
+                }
+            } catch (error) {
+                console.error('Error loading rekap data:', error);
+            }
+        }
+        
+        // Render rekap table
+        function renderRekapTable() {
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const pageData = currentRekapData.slice(start, end);
+            
+            const tbody = document.getElementById('rekap-data');
+            tbody.innerHTML = '';
+            
+            if (pageData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="p-8 text-center">
+                            <div class="flex flex-col items-center justify-center text-gray-500">
+                                <i class="fas fa-search text-4xl mb-3"></i>
+                                <p>Tidak ditemukan data untuk filter yang dipilih.</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            pageData.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-gray-100 hover:bg-gray-50';
+                row.innerHTML = `
+                    <td class="p-3">${item.nama}</td>
+                    <td class="p-3">${formatDate(item.tanggal)}</td>
+                    <td class="p-3">${item.waktu}</td>
+                    <td class="p-3">
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold ${item.status === 'Tepat Waktu' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}">
+                            ${item.status}
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // Update pagination
+        function updatePagination() {
+            const totalItems = currentRekapData.length;
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+            
+            document.getElementById('total-items').textContent = totalItems;
+            document.getElementById('page-start').textContent = totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
+            document.getElementById('page-end').textContent = Math.min(currentPage * itemsPerPage, totalItems);
+            document.getElementById('page-numbers').textContent = `${currentPage} / ${totalPages}`;
+            
+            document.getElementById('prev-page').disabled = currentPage <= 1;
+            document.getElementById('next-page').disabled = currentPage >= totalPages;
+        }
+        
+        // Pagination functions
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderRekapTable();
+                updatePagination();
+            }
+        }
+        
+        function nextPage() {
+            const totalPages = Math.ceil(currentRekapData.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderRekapTable();
+                updatePagination();
+            }
+        }
+        
+        // Format date
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('id-ID', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            });
+        }
+        
+        // Call API
+        async function callAPI(action, data) {
+            const payload = {
+                action,
+                data: {
+                    ...data,
+                    timestamp: new Date().toISOString()
+                }
+            };
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                
+                return await response.json();
+            } catch (error) {
+                throw new Error('API Error: ' + error.message);
+            }
+        }
+        
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+            
+            toastMessage.textContent = message;
+            
+            // Update color based on type
+            const toastInner = toast.querySelector('div');
+            toastInner.className = type === 'success' ? 
+                'bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center' :
+                'bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center';
+            
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Logout
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('absensiUser');
+            
+            document.getElementById('app-container').classList.add('hidden');
+            document.getElementById('login-section').classList.add('active');
+            
+            // Reset form
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+        }
+    </script>
+</body>
+</html>
